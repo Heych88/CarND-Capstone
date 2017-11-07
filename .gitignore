@@ -3,4 +3,6 @@
 ros/build
 ros/devel
 
+.idea/
+
 profile.tmp

@@ -34,7 +34,7 @@ docker run -p 4567:4567 -v $PWD:/capstone -v /tmp/log:/root/.ros/ --rm -it capst
 
 1. Clone the project repository
 ```bash
-git clone https://github.com/udacity/CarND-Capstone.git
+git clone https://github.com/Heych88/Udacity-CarND-Capstone.git
 ```
 
 2. Install python dependencies
