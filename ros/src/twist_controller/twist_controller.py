@@ -52,8 +52,7 @@ class Controller(object):
         self.vehicle_mass  = self.vehicle_cfg['vehicle_mass']
         self.wheel_radius  = self.vehicle_cfg['wheel_radius']
         self.steering = YawController(self.wheel_base, self.steer_ratio, self.min_speed, self.max_lat_accel, self.max_steer_angle)
-        self.steer_pid = PID(Kp_s, Ki_s, Kd_s, mn=-self.max_steer_angle, mx=self.max_steer_angle,
-                             min_i=-self.max_steer_angle, max_i=self.max_steer_angle)
+        self.steer_pid = PID(Kp_s, Ki_s, Kd_s, mn=MIN_STEER, mx=MAX_STEER, min_i=MIN_STEER, max_i=MAX_STEER)
 
         self.vel_filter = LowPassFilter(6, 1)  # use only 14.29% of latest error
         self.steer_filter = LowPassFilter(1, 3)  # use only 75%
