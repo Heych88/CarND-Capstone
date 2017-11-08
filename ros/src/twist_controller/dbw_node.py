@@ -44,7 +44,7 @@ class DBWNode(object):
         wheel_base = rospy.get_param('~wheel_base', 2.8498)
         steer_ratio = rospy.get_param('~steer_ratio', 14.8)
         max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
-        max_steer_angle = rospy.get_param('~max_steer_angle', 1.)
+        max_steer_angle = rospy.get_param('~max_steer_angle', (25./180.)*math.pi)
         self.vehicle_config = {'vehicle_mass':vehicle_mass,'fuel_capacity':fuel_capacity,'brake_deadband':brake_deadband,\
                                'decel_limit':decel_limit,'accel_limit':accel_limit,'wheel_radius':wheel_radius,'wheel_base':wheel_base,\
                                'steer_ratio':steer_ratio,'max_lat_accel':max_lat_accel,'max_steer_angle':max_steer_angle}
@@ -122,12 +122,13 @@ class DBWNode(object):
                 target_v   = self.twist_cmd.twist.linear
                 target_w   = self.twist_cmd.twist.angular
                 current_v  = self.current_velocity.twist.linear
+                current_W = self.current_velocity.twist.angular
                 dbw_status = self.dbw
                 
                 # publish commands only when dbw is enable
                 if self.dbw:
                     rospy.loginfo("DBW is enable......ON ")
-                    throttle, brake, steering = self.controller.control(target_v,target_w,current_v,dbw_status,dt)
+                    throttle, brake, steering = self.controller.control(target_v,target_w,current_v,current_W,dbw_status,dt)
                     self.publish(throttle, brake, steering)
                 else:
                     rospy.loginfo("DBW is disable.....OFF! ")

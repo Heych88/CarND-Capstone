@@ -28,11 +28,6 @@ MAX_THROTTLE = 1.0
 
 MIN_INTEGRAL = -30.0  # this will max the integral error to only contribute 0.6 to the throttle
 MAX_INTEGRAL = 30.0
-
-MAX_STEER = 25. * pi / 180.  # max steer angle to 25 degrees
-MIN_STEER = -MAX_STEER
-
-
 # mynote: implement a feedback controller from pid,low pass (both for acceleration), yaw controller (steering)
 
 class Controller(object):
@@ -51,11 +46,13 @@ class Controller(object):
         self.max_steer_angle = self.vehicle_cfg['max_steer_angle']
         self.vehicle_mass  = self.vehicle_cfg['vehicle_mass']
         self.wheel_radius  = self.vehicle_cfg['wheel_radius']
+
         self.steering = YawController(self.wheel_base, self.steer_ratio, self.min_speed, self.max_lat_accel, self.max_steer_angle)
-        self.steer_pid = PID(Kp_s, Ki_s, Kd_s, mn=MIN_STEER, mx=MAX_STEER, min_i=MIN_STEER, max_i=MAX_STEER)
+        self.steer_pid = PID(Kp_s, Ki_s, Kd_s, mn=-self.max_steer_angle, mx=self.max_steer_angle,
+                             min_i=-self.max_steer_angle, max_i=self.max_steer_angle)
 
         self.vel_filter = LowPassFilter(6, 1)  # use only 14.29% of latest error
-        self.steer_filter = LowPassFilter(1, 3)  # use only 75%
+        self.steer_filter = LowPassFilter(14, 1)  # use only 10%
 
 
     def control(self, *args, **kwargs):
@@ -64,11 +61,12 @@ class Controller(object):
         # Throttle := [0,1], Brake := N*m, Steering := Radian
         
         # velocity args
-        target_v   = args[0]#current_velocity.twist.linear
-        target_w   = args[1]#current_velocity.twist.angular
-        current_v  = args[2]#twist_cmd.twist.linear
-        dbw_status = args[3]#dbw
-        dt         = args[4]#sample time dt
+        target_v   = args[0]#target_velocity.twist.linear
+        target_w   = args[1]#target_rotation.twist.angular
+        current_v  = args[2]#current_velocity.twist.linear
+        current_w  = args[3]#current_rotation.twist.angular
+        dbw_status = args[4]#dbw
+        dt         = args[5]#sample time dt
         # linear speed error in x
         v_current = self.vel_filter.filt(abs(current_v.x))
         v_target  = abs(target_v.x)
@@ -81,24 +79,30 @@ class Controller(object):
         #               - something fishy about this yaw control scheme
         #               - what happen if v_current > v_target much a lot? The steering might spin out of control!
         #               - so we need to make sure the speed doesn't go pass the limit for too long & lowpass filter also help
-        w_target = target_w.z
-        steering_error = self.steer_filter.filt(w_target)
+        w_target  = target_w.z
+        w_current = 0.  #self.steer_filter.filt(current_w.z)
+        steering_error = w_target #- w_current
         steering_cmd = self.steering.get_steering(v_target, steering_error, v_current)
         steering_cmd = self.steer_pid.step(steering_cmd, dt)
         #steering_cmd = (steering_cmd+pi)%(2*pi) - pi
-        print("steering: ", steering_cmd)
+
+        #print("steering: ", steering_cmd)
         
-        print("target v.x: ", target_v.x)
-        print("target v.y: ", target_v.y)
-        print("target v.z: ", target_v.z)
-        print("target w.x: ", target_w.x)
-        print("target w.y: ", target_w.y)
-        print("target w.z: ", target_w.z)
+        #print("target v.x: ", target_v.x)
+        #print("target v.y: ", target_v.y)
+        #print("target v.z: ", target_v.z)
+        #print("target w.x: ", target_w.x)
+        #print("target w.y: ", target_w.y)
+        #print("target w.z: ", target_w.z)
         
-        print("current v.x: ", current_v.x)
-        print("current v.y: ", current_v.y)
-        print("current v.z: ", current_v.z)
-        print("filtered v.x: ", v_current)
+        #print("current v.x: ", current_v.x)
+        #print("current v.y: ", current_v.y)
+        #print("current v.z: ", current_v.z)
+        #print("filtered v.x: ", v_current)
+        #print("current w.x: ", current_w.x)
+        #print("current w.y: ", current_w.y)
+        #print("current w.z: ", current_w.z)
+        #print("filtered w.z: ", w_current)
         
         # NOTE: Just to get thing going only:need to fine tune this
         #       Or use different approach altogether
