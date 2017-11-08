@@ -6,9 +6,9 @@ from math import *
 ##
 #    Throttle PID
 ##
-Kp_v = 2.5      #0.03      # 0.08      # 0.05
-Kd_v = 0.0006   #0.01      # 0.02      # 0.02
-Ki_v = 0.02     #.002     # 0.005     # 0.001
+Kp_v = 2.0      #0.03      # 0.08      # 0.05
+Kd_v = 2.25     #0.01      # 0.02      # 0.02
+Ki_v = 0.045    #.002     # 0.005     # 0.001
 
 ##
 #    Steering PID
@@ -50,6 +50,8 @@ class Controller(object):
         self.vehicle_mass  = self.vehicle_cfg['vehicle_mass']
         self.wheel_radius  = self.vehicle_cfg['wheel_radius']
         self.steering = YawController(self.wheel_base, self.steer_ratio, self.min_speed, self.max_lat_accel, self.max_steer_angle)
+
+        self.vel_filter = LowPassFilter(6, 1) # filter at 5Hz drop off
         
 
     def control(self, *args, **kwargs):
@@ -64,7 +66,7 @@ class Controller(object):
         dbw_status = args[3]#dbw
         dt         = args[4]#sample time dt
         # linear speed error in x
-        v_current = abs(current_v.x)
+        v_current = self.vel_filter.filt(abs(current_v.x))
         v_target  = abs(target_v.x)
         v_error   = v_target - v_current
 
@@ -76,7 +78,8 @@ class Controller(object):
         #               - what happen if v_current > v_target much a lot? The steering might spin out of control!
         #               - so we need to make sure the speed doesn't go pass the limit for too long & lowpass filter also help
         w_target = target_w.z
-        steering_cmd = self.steering.get_steering(v_target, w_target, v_current)
+        steering_cmd = self.steering.get_steering(v_current, w_target, v_current)
+        print("steering: ", steering_cmd)
         steering_cmd = (steering_cmd+pi)%(2*pi) - pi
         
         print("target v.x: ", target_v.x)
@@ -89,20 +92,19 @@ class Controller(object):
         print("current v.x: ", current_v.x)
         print("current v.y: ", current_v.y)
         print("current v.z: ", current_v.z)
+        print("filtered v.x: ", v_current)
         
         # NOTE: Just to get thing going only:need to fine tune this
         #       Or use different approach altogether
         # Brake control                                 
-        d_speed = v_target - v_current
-        print("error v.x: ", d_speed)
-
+        #d_speed = v_target - v_current
         brake_cmd = 0.0
         d_t = 2.0   # desire braking time: reduce to the target speed within d_t
         # over the limit, then we need to apply brake
         # allow a small margin of error before applying the brakes
-        if(d_speed < -0.5):
+        if(v_error < -0.5):
             # d_speed is negative so need to reverse it to positive
-            brake_cmd = -self.vehicle_mass*self.wheel_radius*d_speed/d_t
+            brake_cmd = -self.vehicle_mass*self.wheel_radius*v_error/d_t
         
         
         print("throttle: ", throttle_cmd)
