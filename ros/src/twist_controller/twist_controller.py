@@ -13,8 +13,8 @@ Ki_v = 0.045    #.002     # 0.005     # 0.001
 ##
 #    Steering PID
 ##
-Kp_s = 0.05
-Kd_s = 0.02
+Kp_s = 1.5
+Kd_s = 0.2
 Ki_s = 0.001
 
 
@@ -26,9 +26,11 @@ ONE_MPH = 0.44704
 MIN_THROTTLE = 0.0
 MAX_THROTTLE = 1.0
 
-MIN_INTEGRAL = -30.0 # this will max the integral error to only contribute 0.6 to the throttle
+MIN_INTEGRAL = -30.0  # this will max the integral error to only contribute 0.6 to the throttle
 MAX_INTEGRAL = 30.0
 
+MAX_STEER = 25. * pi / 180.  # max steer angle to 25 degrees
+MIN_STEER = -MAX_STEER
 
 
 # mynote: implement a feedback controller from pid,low pass (both for acceleration), yaw controller (steering)
@@ -50,9 +52,11 @@ class Controller(object):
         self.vehicle_mass  = self.vehicle_cfg['vehicle_mass']
         self.wheel_radius  = self.vehicle_cfg['wheel_radius']
         self.steering = YawController(self.wheel_base, self.steer_ratio, self.min_speed, self.max_lat_accel, self.max_steer_angle)
+        self.steer_pid = PID(Kp_s, Ki_s, Kd_s, mn=MIN_STEER, mx=MAX_STEER, min_i=MIN_STEER, max_i=MAX_STEER)
 
-        self.vel_filter = LowPassFilter(6, 1) # filter at 5Hz drop off
-        
+        self.vel_filter = LowPassFilter(6, 1)  # use only 14.29% of latest error
+        self.steer_filter = LowPassFilter(1, 3)  # use only 75%
+
 
     def control(self, *args, **kwargs):
         # Change the arg, kwarg list to suit your needs (args: target_v,target_w,current_v,dbw_status,dt)
@@ -78,9 +82,11 @@ class Controller(object):
         #               - what happen if v_current > v_target much a lot? The steering might spin out of control!
         #               - so we need to make sure the speed doesn't go pass the limit for too long & lowpass filter also help
         w_target = target_w.z
-        steering_cmd = self.steering.get_steering(v_current, w_target, v_current)
+        steering_error = self.steer_filter.filt(w_target)
+        steering_cmd = self.steering.get_steering(v_target, steering_error, v_current)
+        steering_cmd = self.steer_pid.step(steering_cmd, dt)
+        #steering_cmd = (steering_cmd+pi)%(2*pi) - pi
         print("steering: ", steering_cmd)
-        steering_cmd = (steering_cmd+pi)%(2*pi) - pi
         
         print("target v.x: ", target_v.x)
         print("target v.y: ", target_v.y)
