@@ -64,8 +64,10 @@ class WaypointUpdater(object):
             # check if we recieved the waypoint and current vehicle data
             if((len(self.base_waypoints.waypoints) > 0) & self.base_waypoints_cb & self.current_pose_cb):
                 # find the first waypoint in front of the current vehicle position
-                #front_index = self.nearest_front()
-                front_index = self.next_front()
+                front_index = self.nearest_front()
+                # self.next_front() has a bug on the back part of the track, where the next way-points just iterate
+                # independent of the cars position.
+                #front_index = self.next_front()
                 rospy.loginfo("current waypoint index .... %d", front_index)
                 rospy.loginfo("current waypoint x .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.x)
                 rospy.loginfo("current waypoint y .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.y)
