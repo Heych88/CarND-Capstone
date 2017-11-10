@@ -49,7 +49,7 @@ class WaypointUpdater(object):
         self.current_pose_cb = False
         self.wp_num = 0
         self.wp_front = 0
-        
+        self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
         
         # publishing loop
         self.pub_waypoints()
@@ -73,6 +73,7 @@ class WaypointUpdater(object):
                 rospy.loginfo("current waypoint y .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.y)
                 rospy.loginfo("current x .... %f", self.current_pose.pose.position.x)
                 rospy.loginfo("current y .... %f", self.current_pose.pose.position.y)
+                rospy.loginfo("red light waypoint index %d", self.red_light_index)
                 
                 # copy look ahead waypoints
                 final_waypoints = Lane()
@@ -191,7 +192,7 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
-        pass
+        self.red_light_index = msg.data
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
