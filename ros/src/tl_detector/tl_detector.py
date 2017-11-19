@@ -23,6 +23,8 @@ class TLDetector(object):
         self.camera_image = None
         self.lights = []
 
+        self.light_classifier = TLClassifier(threshold=0.3, modeltype = 'sim') # site
+
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
@@ -42,7 +44,7 @@ class TLDetector(object):
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
 
         self.bridge = CvBridge()
-        self.light_classifier = TLClassifier(threshold=0.3)
+
         self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
@@ -108,7 +110,7 @@ class TLDetector(object):
         if self.waypoints is None:
             rospy.logwarn("[TL_DETECTOR] Waypoint is None!!!")
         else:
-            for idx, wp in enumerate(self.waypoints):
+            for idx, wp in enumerate(self.waypoints.waypoints):
                 wp_x = wp.pose.pose.position.x
                 wp_y = wp.pose.pose.position.y
                 dist = math.sqrt((wp_x - pos_x)**2 + (wp_y - pos_y)**2)
@@ -173,6 +175,7 @@ class TLDetector(object):
         if light:
             state = self.get_light_state(light)
             return light_wp, state
+
         return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':
