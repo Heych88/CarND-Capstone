@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
 import math
 
@@ -34,6 +34,7 @@ class WaypointUpdater(object):
         
         # subscriber
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.twist_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
         # Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
         rospy.Subscriber('/traffic_waypoint',Int32,self.traffic_cb)
@@ -45,8 +46,10 @@ class WaypointUpdater(object):
         # Add other member variables you need below
         self.base_waypoints = Lane()
         self.current_pose = PoseStamped()
+        self.current_twist = TwistStamped()
         self.base_waypoints_cb = False
         self.current_pose_cb = False
+        self.current_twist_cb = False
         self.wp_num = 0
         self.wp_front = 0
         self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
@@ -56,7 +59,7 @@ class WaypointUpdater(object):
         
         # spin node
         rospy.spin()
-        
+
     def pub_waypoints(self):
         rate = rospy.Rate(30) 
         while not rospy.is_shutdown():
@@ -68,14 +71,19 @@ class WaypointUpdater(object):
                 # self.next_front() has a bug on the back part of the track, where the next way-points just iterate
                 # independent of the cars position.
                 #front_index = self.next_front()
+
+                desired_vel = self.set_linear_velocity(front_index)
+
                 rospy.loginfo("current waypoint index .... %d", front_index)
                 rospy.loginfo("current waypoint x .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.x)
                 rospy.loginfo("current waypoint y .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.y)
+                rospy.loginfo("current linear twist .... %f", self.base_waypoints.waypoints[front_index].twist.twist.linear.x)
                 rospy.loginfo("current x .... %f", self.current_pose.pose.position.x)
                 rospy.loginfo("current y .... %f", self.current_pose.pose.position.y)
                 rospy.loginfo("red light waypoint index %d", self.red_light_index)
                 
                 # copy look ahead waypoints
+                self.base_waypoints.waypoints[front_index].twist.twist.linear.x = desired_vel
                 final_waypoints = Lane()
                 final_waypoints.header = self.base_waypoints.header
                 for i in range(front_index, front_index+LOOKAHEAD_WPS):
@@ -169,6 +177,39 @@ class WaypointUpdater(object):
         # record this for the next cycle
         self.wp_front = wp_front%self.wp_num     
         return wp_front%self.wp_num
+
+
+    def set_linear_velocity(self, index):
+        """ calculates the desired speed of the vehicle and ramps down the velocity
+        when stopping at red lights.
+
+        Args:
+            index (int): the index of the closest point of the stop lights
+
+        """
+
+        desired_vel = self.base_waypoints.waypoints[index].twist.twist.linear.x
+        dist_x = dist_y = dist = 0
+
+        wheel_base = rospy.get_param('~wheel_base', 2.8498)
+
+        if(self.red_light_index >= 0):
+            dist_x = self.base_waypoints.waypoints[self.red_light_index-1].pose.pose.position.x - \
+                     self.base_waypoints.waypoints[index].pose.pose.position.x
+            dist_y = self.base_waypoints.waypoints[self.red_light_index-1].pose.pose.position.y - \
+                     self.base_waypoints.waypoints[index].pose.pose.position.y
+
+            # calculate the distance to target location from the front of the vehicle
+            dist = math.sqrt(dist_x ** 2 + dist_y ** 2) - wheel_base
+
+            if (dist < 0.2):
+                desired_vel = 0.
+            elif(dist < 45): # ramp the velocity down when close to the stop point
+                desired_vel = 11.111 * dist / 45.0 # simple ramp function
+        else:
+            desired_vel = 11.111
+
+        return desired_vel
     
     
     def pose_cb(self, msg):
@@ -176,11 +217,13 @@ class WaypointUpdater(object):
         if not self.current_pose_cb:
             self.current_pose_cb = True
         self.current_pose = msg
-        #rospy.loginfo("current pose msg receive .... ")
-        #rospy.loginfo("current x .... %f", self.current_pose.pose.position.x)
-        #rospy.loginfo("current y .... %f", self.current_pose.pose.position.y)
-        #current x .... 1131.220000
-        #current y .... 1183.270000
+
+
+    def twist_cb(self, msg):
+        # Simulator must connected! for receiving the message
+        if not self.current_twist_cb:
+            self.current_twist_cb = True
+        self.current_twist = msg
 
 
     def waypoints_cb(self, msg):

@@ -72,9 +72,26 @@ class Controller(object):
         v_target  = abs(target_v.x)
         v_error   = v_target - v_current
 
-        # Throttle control
-        throttle_cmd = self.throttle.step(v_error, dt)
-        
+        throttle_cmd = 0.    # Throttle command value
+        brake_cmd = 0.     # Throttle command value
+
+        d_t = 2.0  # desire braking time: reduce to the target speed within d_t
+        # over the limit, then we need to apply brake
+
+        # Throttle and brake control
+        if(current_v.x < 0.5) and (target_v.x < 0.2):
+            throttle_cmd = 0.
+            self.throttle.reset()
+            brake_cmd = self.vehicle_mass * self.wheel_radius
+
+        else:
+            throttle_cmd = self.throttle.step(v_error, dt)
+
+            # allow a small margin of error before applying the brakes
+            if (v_error < -0.5):
+                # d_speed is negative so need to reverse it to positive
+                brake_cmd = fabs(self.vehicle_mass * self.wheel_radius * v_error / d_t)
+
         # Steering angle- steering output proportional to (v_current/v_target)
         #               - something fishy about this yaw control scheme
         #               - what happen if v_current > v_target much a lot? The steering might spin out of control!
@@ -86,37 +103,6 @@ class Controller(object):
         steering_cmd = self.steer_pid.step(steering_cmd, dt)
         #steering_cmd = (steering_cmd+pi)%(2*pi) - pi
 
-        #print("steering: ", steering_cmd)
-        
-        #print("target v.x: ", target_v.x)
-        #print("target v.y: ", target_v.y)
-        #print("target v.z: ", target_v.z)
-        #print("target w.x: ", target_w.x)
-        #print("target w.y: ", target_w.y)
-        #print("target w.z: ", target_w.z)
-        
-        #print("current v.x: ", current_v.x)
-        #print("current v.y: ", current_v.y)
-        #print("current v.z: ", current_v.z)
-        #print("filtered v.x: ", v_current)
-        #print("current w.x: ", current_w.x)
-        #print("current w.y: ", current_w.y)
-        #print("current w.z: ", current_w.z)
-        #print("filtered w.z: ", w_current)
-        
-        # NOTE: Just to get thing going only:need to fine tune this
-        #       Or use different approach altogether
-        # Brake control                                 
-        #d_speed = v_target - v_current
-        brake_cmd = 0.0
-        d_t = 2.0   # desire braking time: reduce to the target speed within d_t
-        # over the limit, then we need to apply brake
-        # allow a small margin of error before applying the brakes
-        if(v_error < -0.5):
-            # d_speed is negative so need to reverse it to positive
-            brake_cmd = -self.vehicle_mass*self.wheel_radius*v_error/d_t
-        
-        
         print("throttle: ", throttle_cmd)
         print("brake: ", brake_cmd)
         print("steering: ", steering_cmd)
