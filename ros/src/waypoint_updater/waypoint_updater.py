@@ -55,14 +55,14 @@ class WaypointUpdater(object):
         self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
         
         # publishing loop
-        self.pub_waypoints()
+        #self.pub_waypoints()
         
         # spin node
         rospy.spin()
 
     def pub_waypoints(self):
-        rate = rospy.Rate(30) 
-        while not rospy.is_shutdown():
+        #rate = rospy.Rate(30) 
+        #while not rospy.is_shutdown():
             # rospy.loginfo("publishing waypoints .... ")
             # check if we recieved the waypoint and current vehicle data
             if((len(self.base_waypoints.waypoints) > 0) & self.base_waypoints_cb & self.current_pose_cb):
@@ -217,7 +217,7 @@ class WaypointUpdater(object):
         if not self.current_pose_cb:
             self.current_pose_cb = True
         self.current_pose = msg
-
+        self.pub_waypoints()
 
     def twist_cb(self, msg):
         # Simulator must connected! for receiving the message
