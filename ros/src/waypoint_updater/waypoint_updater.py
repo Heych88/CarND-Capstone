@@ -92,7 +92,7 @@ class WaypointUpdater(object):
  
                 self.final_waypoints_pub.publish(final_waypoints)
          
-            rate.sleep()
+            #rate.sleep()
             
     @staticmethod      
     def Euclidean(x1,y1,x2,y2):
