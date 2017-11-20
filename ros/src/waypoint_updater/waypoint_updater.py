@@ -23,21 +23,21 @@ as well as to verify your TL classifier.
 
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
-
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number default:200
+#reduced the Number of waypoints from 200 to 20
+LOOKAHEAD_WPS = 20 # Number of waypoints we will publish. You can change this number default:200
 
 
 class WaypointUpdater(object):
     def __init__(self):
         # init node
         rospy.init_node('waypoint_updater')
+        # Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        rospy.Subscriber('/traffic_waypoint',Int32,self.traffic_cb)
         
         # subscriber
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/current_velocity', TwistStamped, self.twist_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
-        # Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-        rospy.Subscriber('/traffic_waypoint',Int32,self.traffic_cb)
         #rospy.Subscriber('/obstacle_waypoint',?,self.obstacle_cb)
     
         # publisher final waypoints
