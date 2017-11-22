@@ -101,6 +101,10 @@ class WaypointUpdater(object):
                 final_waypoints.waypoints.append(self.base_waypoints.waypoints[ci])
 
             self.final_waypoints_pub.publish(final_waypoints)
+        else:
+            # Reset the current waypoint so when autonomous mode is enabled the
+            # vehicle finds the nearest waypoint
+            self.wp_front = None
 
             
     @staticmethod      
@@ -127,6 +131,14 @@ class WaypointUpdater(object):
             lookup_start = 0
             lookup_end = len(self.base_waypoints.waypoints)
         # Continue from the current location + look ahead points
+        elif self.wp_front + LOOKAHEAD_WPS > len(self.base_waypoints.waypoints):
+            if self.wp_front >= len(self.base_waypoints.waypoints):
+                # cycles the waypoints when back at the start location
+                lookup_start = 0
+                lookup_end = lookup_start + LOOKAHEAD_WPS
+            else:
+                lookup_start = self.wp_front
+                lookup_end = len(self.base_waypoints.waypoints)
         else:
             lookup_start = self.wp_front
             lookup_end = lookup_start+LOOKAHEAD_WPS
