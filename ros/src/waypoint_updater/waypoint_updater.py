@@ -3,6 +3,7 @@
 import rospy
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
+from std_msgs.msg import Bool
 import math
 
 ##
@@ -38,6 +39,7 @@ class WaypointUpdater(object):
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/current_velocity', TwistStamped, self.twist_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
         #rospy.Subscriber('/obstacle_waypoint',?,self.obstacle_cb)
     
         # publisher final waypoints
@@ -59,6 +61,9 @@ class WaypointUpdater(object):
         self.ramp_dist = 30 # distance to ramp up and down the acceleration
         # Kinematics => Vf^2 = Vi^2 + 2*a*d => Vi = 0
         self.acceleration = self.max_vel / (2 * self.ramp_dist)
+
+        self.dbw = False  # dbw enable
+        self.dbw_init = False  # first connection established(in syn with publish loop)
         
         # publishing loop
         #self.pub_waypoints()
@@ -69,6 +74,8 @@ class WaypointUpdater(object):
     def pub_waypoints(self):
         #rate = rospy.Rate(30) 
         #while not rospy.is_shutdown():
+
+        if(self.dbw):
             # rospy.loginfo("publishing waypoints .... ")
             # check if we recieved the waypoint and current vehicle data
             if((len(self.base_waypoints.waypoints) > 0) & self.base_waypoints_cb & self.current_pose_cb):
@@ -213,9 +220,7 @@ class WaypointUpdater(object):
             # ramp speed up with acceleration of 0.041(m/s)/ros_rate
             self.desired_vel = max(self.desired_vel + self.acceleration, 0.5)
 
-        print("desired_vel: ", self.desired_vel)
         self.desired_vel = min(self.desired_vel, self.max_vel)
-        print("desired_vel: ", self.desired_vel)
 
     
     def pose_cb(self, msg):
@@ -245,6 +250,11 @@ class WaypointUpdater(object):
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
         pass
+
+    def dbw_enabled_cb(self, msg):
+        if not self.dbw_init:
+            self.dbw_init = True
+        self.dbw = msg.data
 
     def get_waypoint_velocity(self, waypoint):
         return waypoint.twist.twist.linear.x
