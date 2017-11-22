@@ -64,48 +64,44 @@ class WaypointUpdater(object):
 
         self.dbw = False  # dbw enable
         self.dbw_init = False  # first connection established(in syn with publish loop)
-        
-        # publishing loop
-        #self.pub_waypoints()
-        
+
         # spin node
         rospy.spin()
 
     def pub_waypoints(self):
-        #rate = rospy.Rate(30) 
-        #while not rospy.is_shutdown():
+        """
+        Find the next waypoint parameters and publises them to self.final_waypoints_pub
 
-        if(self.dbw):
-            # rospy.loginfo("publishing waypoints .... ")
-            # check if we recieved the waypoint and current vehicle data
-            if((len(self.base_waypoints.waypoints) > 0) & self.base_waypoints_cb & self.current_pose_cb):
-                # find the first waypoint in front of the current vehicle position
-                front_index = self.nearest_front()
-                # self.next_front() has a bug on the back part of the track, where the next way-points just iterate
-                # independent of the cars position.
-                #front_index = self.next_front()
+        """
 
-                self.set_linear_velocity(front_index)
+        # check if we recieved the waypoint and current vehicle data
+        if(self.dbw & (len(self.base_waypoints.waypoints) > 0) & self.base_waypoints_cb & self.current_pose_cb):
+            # find the first waypoint in front of the current vehicle position
+            front_index = self.nearest_front()
+            # self.next_front() has a bug on the back part of the track, where the next way-points just iterate
+            # independent of the cars position.
+            #front_index = self.next_front()
 
-                rospy.loginfo("current waypoint index .... %d", front_index)
-                rospy.loginfo("current waypoint x .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.x)
-                rospy.loginfo("current waypoint y .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.y)
-                rospy.loginfo("current linear twist .... %f", self.base_waypoints.waypoints[front_index].twist.twist.linear.x)
-                rospy.loginfo("current x .... %f", self.current_pose.pose.position.x)
-                rospy.loginfo("current y .... %f", self.current_pose.pose.position.y)
-                rospy.loginfo("red light waypoint index %d", self.red_light_index)
-                
-                # copy look ahead waypoints
-                self.base_waypoints.waypoints[front_index].twist.twist.linear.x = self.desired_vel
-                final_waypoints = Lane()
-                final_waypoints.header = self.base_waypoints.header
-                for i in range(front_index, front_index+LOOKAHEAD_WPS):
-                    ci = i%self.wp_num
-                    final_waypoints.waypoints.append(self.base_waypoints.waypoints[ci])
- 
-                self.final_waypoints_pub.publish(final_waypoints)
-         
-            #rate.sleep()
+            self.set_linear_velocity(front_index)
+
+            rospy.loginfo("current waypoint index .... %d", front_index)
+            rospy.loginfo("current waypoint x .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.x)
+            rospy.loginfo("current waypoint y .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.y)
+            rospy.loginfo("current linear twist .... %f", self.base_waypoints.waypoints[front_index].twist.twist.linear.x)
+            rospy.loginfo("current x .... %f", self.current_pose.pose.position.x)
+            rospy.loginfo("current y .... %f", self.current_pose.pose.position.y)
+            rospy.loginfo("red light waypoint index %d", self.red_light_index)
+
+            # copy look ahead waypoints
+            self.base_waypoints.waypoints[front_index].twist.twist.linear.x = self.desired_vel
+            final_waypoints = Lane()
+            final_waypoints.header = self.base_waypoints.header
+            for i in range(front_index, front_index+LOOKAHEAD_WPS):
+                ci = i%self.wp_num
+                final_waypoints.waypoints.append(self.base_waypoints.waypoints[ci])
+
+            self.final_waypoints_pub.publish(final_waypoints)
+
             
     @staticmethod      
     def Euclidean(x1,y1,x2,y2):
@@ -113,8 +109,12 @@ class WaypointUpdater(object):
         
     ## Finding the next waypoint 1: Vector projection         
     def nearest_front(self):
-        # this function finds where we are in from the closest distance
-        # some start up variables
+        """
+        Finds where the nearest map waypoint is based off the vehicle
+        current known position.
+
+        """
+
         current_x = self.current_pose.pose.position.x
         current_y = self.current_pose.pose.position.y
         wp_x = self.base_waypoints.waypoints[0].pose.pose.position.x
@@ -161,8 +161,12 @@ class WaypointUpdater(object):
     
     # Find the next waypoint 2: Simple closest point
     def next_front(self):
-        # this function finds where we are in from the closest distance
-        # some start up variables
+        """
+        Finds where the next map waypoint based off the vehicles previously
+        known position.
+
+        """
+
         current_x = self.current_pose.pose.position.x
         current_y = self.current_pose.pose.position.y
         wp_x = self.base_waypoints.waypoints[0].pose.pose.position.x
@@ -193,7 +197,8 @@ class WaypointUpdater(object):
 
 
     def set_linear_velocity(self, index):
-        """ calculates the desired speed of the vehicle and ramps down the velocity
+        """
+        Calculates the desired speed of the vehicle and ramps down the velocity
         when stopping at red lights.
 
         Args:

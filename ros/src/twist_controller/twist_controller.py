@@ -13,9 +13,9 @@ Ki_v = 0.045    #.002     # 0.005     # 0.001
 ##
 #    Steering PID
 ##
-Kp_s = 1.5
+Kp_s = 1.0
 Kd_s = 0.2
-Ki_s = 0.  #001
+Ki_s = 0.001
 
 
 ##
@@ -82,7 +82,7 @@ class Controller(object):
         if(current_v.x < 0.5) and (target_v.x < 0.2):
             throttle_cmd = 0.
             self.throttle.reset()
-            brake_cmd = self.vehicle_mass * self.wheel_radius
+            brake_cmd = (self.vehicle_mass * self.wheel_radius) / 4
 
         else:
             throttle_cmd = self.throttle.step(v_error, dt)
@@ -101,11 +101,6 @@ class Controller(object):
         steering_error = w_target #- w_current
         steering_cmd = self.steering.get_steering(v_target, steering_error, v_current)
         steering_cmd = self.steer_pid.step(steering_cmd, dt)
-        #steering_cmd = (steering_cmd+pi)%(2*pi) - pi
-
-        print("throttle: ", throttle_cmd)
-        print("brake: ", brake_cmd)
-        print("steering: ", steering_cmd)
         
         # Return throttle, brake, steer in this order
         return throttle_cmd, brake_cmd, steering_cmd

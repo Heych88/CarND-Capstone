@@ -33,7 +33,7 @@ that we have created in the `__init__` function.
 
 class DBWNode(object):
     def __init__(self):
-        rospy.init_node('dbw_node')
+        rospy.init_node('dbw_node', anonymous=True)
 
         vehicle_mass = rospy.get_param('~vehicle_mass', 1736.35)
         fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
@@ -54,12 +54,10 @@ class DBWNode(object):
         self.throttle_pub = rospy.Publisher('/vehicle/throttle_cmd', ThrottleCmd, queue_size=1)
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd', BrakeCmd, queue_size=1)
 
-        # TODO: Create `TwistController` object
         # self.controller = TwistController(<Arguments you wish to provide>)
         # argument: target_v,target_w, current_v, dbw_status, vehicle config
         self.controller = Controller(self.vehicle_config)
 
-        # TODO: Subscribe to all the topics you need to (mynote: /current_velocity, /twist_cmd, and /vehicle/dbw_enabled)
         rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)   # car current velocity (from sim/carla)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)                 # car planned velocity (from waypoint)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
@@ -129,13 +127,16 @@ class DBWNode(object):
                 if self.dbw:
                     rospy.loginfo("DBW is enable......ON ")
                     throttle, brake, steering = self.controller.control(target_v,target_w,current_v,current_W,dbw_status,dt)
+
+                    rospy.loginfo("throttle: %f", throttle)
+                    rospy.loginfo("brake: %f", brake)
+                    rospy.loginfo("steering: %f", steering)
+
                     self.publish(throttle, brake, steering)
                 else:
                     rospy.loginfo("DBW is disable.....OFF! ")
                     self.publish(0.0,0.0,0.0)
-                    
-                
-                
+
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
