@@ -25,7 +25,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 #reduced the Number of waypoints from 200 to 20
-LOOKAHEAD_WPS = 20 # Number of waypoints we will publish. You can change this number default:200
+LOOKAHEAD_WPS = 100 # Number of waypoints we will publish. You can change this number default:200
 
 
 class WaypointUpdater(object):
@@ -53,7 +53,7 @@ class WaypointUpdater(object):
         self.current_pose_cb = False
         self.current_twist_cb = False
         self.wp_num = 0
-        self.wp_front = 0
+        self.wp_front = None
         self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
 
         self.desired_vel = 0.0 # the desired vehicle velocity at each timestep
@@ -121,8 +121,16 @@ class WaypointUpdater(object):
         wp_y = self.base_waypoints.waypoints[0].pose.pose.position.y
         min_d = self.Euclidean(wp_x,wp_y,current_x,current_y)
         min_i = 0
-        lookup_start = 1
-        lookup_end = len(self.base_waypoints.waypoints)
+        
+        # On start up we search through the list
+        if self.wp_front is None:  
+            lookup_start = 0
+            lookup_end = len(self.base_waypoints.waypoints)
+        # Continue from the current location + look ahead points
+        else:
+            lookup_start = self.wp_front
+            lookup_end = lookup_start+LOOKAHEAD_WPS
+        
         for i in range(lookup_start,lookup_end):
             wp_x = self.base_waypoints.waypoints[i].pose.pose.position.x
             wp_y = self.base_waypoints.waypoints[i].pose.pose.position.y
@@ -159,7 +167,7 @@ class WaypointUpdater(object):
         self.wp_front = wp_front%self.wp_num     
         return wp_front%self.wp_num
     
-    # Find the next waypoint 2: Simple closest point
+    # (Deprecated) Find the next waypoint 2: Simple closest point
     def next_front(self):
         """
         Finds where the next map waypoint based off the vehicles previously
