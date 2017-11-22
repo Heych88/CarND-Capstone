@@ -57,8 +57,8 @@ class WaypointUpdater(object):
         self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
 
         self.desired_vel = 0.0 # the desired vehicle velocity at each timestep
-        self.max_vel = 11.111
-        self.ramp_dist = 30 # distance to ramp up and down the acceleration
+        self.max_vel = 11.111 # m/s
+        self.ramp_dist = 35 # distance to ramp up and down the acceleration (m)
         # Kinematics => Vf^2 = Vi^2 + 2*a*d => Vi = 0
         self.acceleration = self.max_vel / (2 * self.ramp_dist)
 
@@ -217,7 +217,7 @@ class WaypointUpdater(object):
             # calculate the distance to target location from the front of the vehicle
             dist = math.sqrt(dist_x ** 2 + dist_y ** 2) - wheel_base
 
-            if (dist < 0.1):
+            if (dist < 0.3):
                 self.desired_vel = 0.
             elif(dist < self.ramp_dist): # ramp the velocity down when close to the stop point
                 self.desired_vel = max(self.max_vel * dist / self.ramp_dist, 0.5) # simple ramp function
