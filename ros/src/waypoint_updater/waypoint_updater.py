@@ -53,6 +53,12 @@ class WaypointUpdater(object):
         self.wp_num = 0
         self.wp_front = 0
         self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
+
+        self.desired_vel = 0.0 # the desired vehicle velocity at each timestep
+        self.max_vel = 11.111
+        self.ramp_dist = 30 # distance to ramp up and down the acceleration
+        # Kinematics => Vf^2 = Vi^2 + 2*a*d => Vi = 0
+        self.acceleration = self.max_vel / (2 * self.ramp_dist)
         
         # publishing loop
         #self.pub_waypoints()
@@ -72,7 +78,7 @@ class WaypointUpdater(object):
                 # independent of the cars position.
                 #front_index = self.next_front()
 
-                desired_vel = self.set_linear_velocity(front_index)
+                self.set_linear_velocity(front_index)
 
                 rospy.loginfo("current waypoint index .... %d", front_index)
                 rospy.loginfo("current waypoint x .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.x)
@@ -83,7 +89,7 @@ class WaypointUpdater(object):
                 rospy.loginfo("red light waypoint index %d", self.red_light_index)
                 
                 # copy look ahead waypoints
-                self.base_waypoints.waypoints[front_index].twist.twist.linear.x = desired_vel
+                self.base_waypoints.waypoints[front_index].twist.twist.linear.x = self.desired_vel
                 final_waypoints = Lane()
                 final_waypoints.header = self.base_waypoints.header
                 for i in range(front_index, front_index+LOOKAHEAD_WPS):
@@ -188,29 +194,29 @@ class WaypointUpdater(object):
 
         """
 
-        desired_vel = self.base_waypoints.waypoints[index].twist.twist.linear.x
-        dist_x = dist_y = dist = 0
-
         wheel_base = rospy.get_param('~wheel_base', 2.8498)
 
         if(self.red_light_index >= 0):
-            dist_x = self.base_waypoints.waypoints[self.red_light_index-1].pose.pose.position.x - \
+            dist_x = self.base_waypoints.waypoints[self.red_light_index].pose.pose.position.x - \
                      self.base_waypoints.waypoints[index].pose.pose.position.x
-            dist_y = self.base_waypoints.waypoints[self.red_light_index-1].pose.pose.position.y - \
+            dist_y = self.base_waypoints.waypoints[self.red_light_index].pose.pose.position.y - \
                      self.base_waypoints.waypoints[index].pose.pose.position.y
 
             # calculate the distance to target location from the front of the vehicle
             dist = math.sqrt(dist_x ** 2 + dist_y ** 2) - wheel_base
 
-            if (dist < 0.2):
-                desired_vel = 0.
-            elif(dist < 45): # ramp the velocity down when close to the stop point
-                desired_vel = 11.111 * dist / 45.0 # simple ramp function
+            if (dist < 0.1):
+                self.desired_vel = 0.
+            elif(dist < self.ramp_dist): # ramp the velocity down when close to the stop point
+                self.desired_vel = max(self.max_vel * dist / self.ramp_dist, 0.5) # simple ramp function
         else:
-            desired_vel = 11.111
+            # ramp speed up with acceleration of 0.041(m/s)/ros_rate
+            self.desired_vel = max(self.desired_vel + self.acceleration, 0.5)
 
-        return desired_vel
-    
+        print("desired_vel: ", self.desired_vel)
+        self.desired_vel = min(self.desired_vel, self.max_vel)
+        print("desired_vel: ", self.desired_vel)
+
     
     def pose_cb(self, msg):
         # Simulator must connected! for receiving the message
@@ -234,7 +240,6 @@ class WaypointUpdater(object):
         self.wp_num = len(msg.waypoints)
 
     def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
         self.red_light_index = msg.data
 
     def obstacle_cb(self, msg):
