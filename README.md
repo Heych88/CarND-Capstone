@@ -1,6 +1,8 @@
-This is the project repo for Programming a Real Self-Driving Car, as apart of the final project of the Udacity Self-Driving Car Nanodegree. For more information about the project, see the Udacity project repository [here](https://github.com/udacity/CarND-Capstone).
+This is the project repo for Programming a Real Self-Driving Car, as  the final project of the Udacity Self-Driving Car Nanodegree. For more information about the project, see the Udacity project repository [here](https://github.com/udacity/CarND-Capstone).
 
-A video of the project in action using the simulator can be seen below.
+This project is the combined work of [Andre Meeusen](https://github.com/meeuw007), [Christian Marzahl](https://github.com/ChristianMarzahl), [Haidyn Mcleod](https://github.com/Heych88), [Kamil Kindziuk](https://github.com/kamil0123) and [Punnu Phairatt](https://github.com/LukePhairatt).
+
+A video of the project in action using the simulator can be viewed [here](https://youtu.be/5LJfvmMQwCw).
 
  [![Capstone project in simulator action](imgs/video.png)](https://youtu.be/5LJfvmMQwCw)
 
@@ -8,7 +10,7 @@ A video of the project in action using the simulator can be seen below.
 ## System Dependencies
 ##### Ubuntu
 The code requires a workstation running Ubuntu 16.04 Xenial Xerus or Ubuntu 14.04 Trusty Tahir. [Ubuntu downloads can be found here](https://www.ubuntu.com/download/desktop).
-* If using a Virtual Machine to install Ubuntu, use the following configuration as minimum:
+* If using a Virtual Machine to install Ubuntu, use the following configuration as a minimum:
   * 2 CPU
   * 2 GB system memory
   * 25 GB of free hard drive space
@@ -25,7 +27,7 @@ The Simulator uses the Dataspeed DBW model which can be found here [here](https:
 ##### Simulator
 Download the Udacity Simulator for your host operating system from [here](https://github.com/udacity/CarND-Capstone/releases/tag/v1.2).
 
-If using a Virtual Machine, it is recommended to downloading the simulator for your host operating system and using this outside of the VM. You will be able to run code within the VM while running the simulator natively in the host using port forwarding on port `4567` for both the Host and Guest ports. For more information on how to set up port forwarding, see  [here](https://www.howtogeek.com/122641/how-to-forward-ports-to-a-virtual-machine-and-use-it-as-a-server/).
+If using a Virtual Machine, it is recommended to downloading the simulator for your host operating system and using this outside of the VM. You will be able to run code within the VM while running the simulator natively on the host using port forwarding on port `4567` for both the Host and Guest ports. For more information on how to set up port forwarding, see  [here](https://www.howtogeek.com/122641/how-to-forward-ports-to-a-virtual-machine-and-use-it-as-a-server/).
 
 ## Installation and setup
 ### Docker Installation
@@ -72,7 +74,7 @@ roslaunch launch/styx.launch
 ![Simulator running](imgs/simulator.png)
 
 ### Real world testing
-1. Download [training bag](https://drive.google.com/file/d/0B2_h37bMVw3iYkdJTlRSUlJIamM/view?usp=sharing) that was recorded on the Udacity self-driving car (a bag demonstraing the correct predictions in autonomous mode can be found [here](https://drive.google.com/open?id=0B2_h37bMVw3iT0ZEdlF4N01QbHc))
+1. Download [training bag](https://drive.google.com/file/d/0B2_h37bMVw3iYkdJTlRSUlJIamM/view?usp=sharing) that was recorded on the Udacity self-driving car (a bag demonstrating the correct predictions in autonomous mode can be found [here](https://drive.google.com/open?id=0B2_h37bMVw3iT0ZEdlF4N01QbHc))
 2. Unzip the file
 ```bash
 unzip traffic_light_bag_files.zip
@@ -86,4 +88,4 @@ rosbag play -l traffic_light_bag_files/loop_with_traffic_light.bag
 cd CarND-Capstone/ros
 roslaunch launch/site.launch
 ```
-5. Confirm that traffic light detection works on real life images
+5. Confirm that traffic light detection works on real-life images
