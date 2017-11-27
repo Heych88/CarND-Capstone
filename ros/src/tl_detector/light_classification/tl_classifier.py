@@ -11,11 +11,10 @@ from pathlib import Path
 
 
 class TLClassifier(object):
-    def __init__(self, threshold, modeltype = 'sim'):
+    def __init__(self, threshold, modelpath):
         self.threshold = threshold
 
-        inference_path = os.path.join(str(Path(__file__).parent.parent),
-                                    "training/model_{}/inference/frozen_inference_graph.pb".format(modeltype))
+        inference_path = modelpath
 
         self.detection_graph = tf.Graph()
 
