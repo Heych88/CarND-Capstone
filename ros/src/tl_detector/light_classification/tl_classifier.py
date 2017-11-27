@@ -1,21 +1,19 @@
 from styx_msgs.msg import TrafficLight
 import rospy
 
-
 import os
 import glob
 import numpy as np
 import cv2
 import tensorflow as tf
-from pathlib import Path
+
 
 
 class TLClassifier(object):
-    def __init__(self, threshold, modeltype = 'sim'):
+    def __init__(self, threshold, modelpath):
         self.threshold = threshold
 
-        inference_path = os.path.join(str(Path(__file__).parent.parent),
-                                    "training/model_{}/inference/frozen_inference_graph.pb".format(modeltype))
+        inference_path = modelpath
 
         self.detection_graph = tf.Graph()
 
@@ -97,9 +95,9 @@ class TLClassifier(object):
 
 
 if __name__ == '__main__':
-    tl_cls =TLClassifier(threshold=0.3)
+    tl_cls =TLClassifier(threshold=0.3, modelpath= "../training/model_sim/inference/frozen_inference_graph.pb")
 
-    image_paths = os.path.join(str(Path(__file__).parent.parent),"training/Images/*.png")
+    image_paths = "../training/Images/*.png"
 
     for image_path, label in zip(sorted(glob.glob(image_paths)), [3, 3, 3, 1, 1, 1, 2, 2, 2]):
         image =  cv2.imread(image_path)
