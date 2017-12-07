@@ -57,7 +57,7 @@ class WaypointUpdater(object):
         self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
 
         self.desired_vel = 0.0 # the desired vehicle velocity at each timestep
-        self.max_vel = 11.111 # m/s
+        self.max_vel = 10.0 # m/s
         self.ramp_dist = 35 # distance to ramp up and down the acceleration (m)
         # Kinematics => Vf^2 = Vi^2 + 2*a*d => Vi = 0
         self.acceleration = self.max_vel / (2 * self.ramp_dist)

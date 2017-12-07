@@ -6,7 +6,7 @@ from math import *
 ##
 #    Throttle PID
 ##
-Kp_v = 2.0      #0.03      # 0.08      # 0.05
+Kp_v = 1.5      #0.03      # 0.08      # 0.05
 Kd_v = 2.25     #0.01      # 0.02      # 0.02
 Ki_v = 0.045    #.002     # 0.005     # 0.001
 
@@ -51,8 +51,10 @@ class Controller(object):
         self.steer_pid = PID(Kp_s, Ki_s, Kd_s, mn=-self.max_steer_angle, mx=self.max_steer_angle,
                              min_i=-self.max_steer_angle, max_i=self.max_steer_angle)
 
-        self.vel_filter = LowPassFilter(6, 1)  # use only 14.29% of latest error
+        self.vel_filter = LowPassFilter(29, 1)  # use only 14.29% of latest error
         self.steer_filter = LowPassFilter(14, 1)  # use only 10%
+
+        self.highest_v = 0
 
 
     def control(self, *args, **kwargs):
@@ -72,6 +74,9 @@ class Controller(object):
         v_target  = abs(target_v.x)
         v_error   = v_target - v_current
 
+        self.highest_v = max(self.highest_v, current_v.x)
+        print("self.highest_v ", self.highest_v)
+
         throttle_cmd = 0.    # Throttle command value
         brake_cmd = 0.     # Throttle command value
 
@@ -88,7 +93,7 @@ class Controller(object):
             throttle_cmd = self.throttle.step(v_error, dt)
 
             # allow a small margin of error before applying the brakes
-            if (v_error < -0.5):
+            if (v_error < -0.15):
                 # d_speed is negative so need to reverse it to positive
                 brake_cmd = fabs(self.vehicle_mass * self.wheel_radius * v_error / d_t)
 
