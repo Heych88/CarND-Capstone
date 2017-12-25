@@ -5,6 +5,7 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from styx_msgs.msg import Lane, Waypoint
 from std_msgs.msg import Bool
 import math
+from copy import deepcopy
 
 ##
 from std_msgs.msg import Int32              # traffic waypoint
@@ -46,7 +47,8 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # Add other member variables you need below
-        self.base_waypoints = Lane()
+        self.base_waypoints = Lane() # data from the map used to set the environments desired position
+        self.map_waypoints = Lane() # data used to control the cars desired position
         self.current_pose = PoseStamped()
         self.current_twist = TwistStamped()
         self.base_waypoints_cb = False
@@ -57,10 +59,10 @@ class WaypointUpdater(object):
         self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
 
         self.desired_vel = 0.0 # the desired vehicle velocity at each timestep
-        self.max_vel = 10.0 # m/s
+        #self.max_vel = 10.0 # m/s
         self.ramp_dist = 35 # distance to ramp up and down the acceleration (m)
         # Kinematics => Vf^2 = Vi^2 + 2*a*d => Vi = 0
-        self.acceleration = self.max_vel / (2 * self.ramp_dist)
+        self.acceleration_rate = 0.1 # self.max_vel / (2 * self.ramp_dist)
 
         self.dbw = False  # dbw enable
         self.dbw_init = False  # first connection established(in syn with publish loop)
@@ -88,17 +90,23 @@ class WaypointUpdater(object):
             rospy.loginfo("current waypoint x .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.x)
             rospy.loginfo("current waypoint y .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.y)
             rospy.loginfo("current linear twist .... %f", self.base_waypoints.waypoints[front_index].twist.twist.linear.x)
+            rospy.loginfo("desired linear twist .... %f", self.map_waypoints.waypoints[front_index].twist.twist.linear.x)
             rospy.loginfo("current x .... %f", self.current_pose.pose.position.x)
             rospy.loginfo("current y .... %f", self.current_pose.pose.position.y)
             rospy.loginfo("red light waypoint index %d", self.red_light_index)
 
             # copy look ahead waypoints
-            self.base_waypoints.waypoints[front_index].twist.twist.linear.x = self.desired_vel
+
             final_waypoints = Lane()
             final_waypoints.header = self.base_waypoints.header
+            #final_waypoints.waypoints[front_index].twist.twist.linear.x = self.desired_vel
+
             for i in range(front_index, front_index+LOOKAHEAD_WPS):
                 ci = i%self.wp_num
                 final_waypoints.waypoints.append(self.base_waypoints.waypoints[ci])
+                final_waypoints.waypoints[-1].twist.twist.linear.x = self.desired_vel
+
+            rospy.loginfo(self.desired_vel)
 
             self.final_waypoints_pub.publish(final_waypoints)
         else:
@@ -227,6 +235,8 @@ class WaypointUpdater(object):
         """
 
         wheel_base = rospy.get_param('~wheel_base', 2.8498)
+        # set the environments speed limit and slow down by 10%
+        base_vel = self.map_waypoints.waypoints[index].twist.twist.linear.x * 0.9
 
         if(self.red_light_index >= 0):
             dist_x = self.base_waypoints.waypoints[self.red_light_index].pose.pose.position.x - \
@@ -240,12 +250,12 @@ class WaypointUpdater(object):
             if (dist < 0.3):
                 self.desired_vel = 0.
             elif(dist < self.ramp_dist): # ramp the velocity down when close to the stop point
-                self.desired_vel = max(self.max_vel * dist / self.ramp_dist, 0.5) # simple ramp function
+                self.desired_vel = max(base_vel * dist / self.ramp_dist, 0.5) # simple ramp function
         else:
             # ramp speed up with acceleration of 0.041(m/s)/ros_rate
-            self.desired_vel = max(self.desired_vel + self.acceleration, 0.5)
+            self.desired_vel = max(self.desired_vel + self.acceleration_rate, 0.5)
 
-        self.desired_vel = min(self.desired_vel, self.max_vel)
+        self.desired_vel = min(self.desired_vel, base_vel)
 
     
     def pose_cb(self, msg):
@@ -263,11 +273,12 @@ class WaypointUpdater(object):
 
 
     def waypoints_cb(self, msg):
-        # rospy.loginfo("waypoint msg receive with %d length.... ", len(msg.waypoints))
+        rospy.loginfo("waypoint msg receive with %d length.... ", len(msg.waypoints))
         if not self.base_waypoints_cb:
             self.base_waypoints_cb = True   
-        self.base_waypoints = msg
-        self.wp_num = len(msg.waypoints)
+            self.base_waypoints = msg
+            self.map_waypoints = deepcopy(msg)
+            self.wp_num = len(msg.waypoints)
 
     def traffic_cb(self, msg):
         self.red_light_index = msg.data
