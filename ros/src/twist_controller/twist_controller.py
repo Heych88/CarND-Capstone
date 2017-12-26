@@ -1,3 +1,4 @@
+import rospy
 from pid import PID
 from lowpass import *
 from yaw_controller import YawController
@@ -75,7 +76,7 @@ class Controller(object):
         v_error   = v_target - v_current
 
         self.highest_v = max(self.highest_v, current_v.x)
-        print("self.highest_v ", self.highest_v)
+        rospy.loginfo("highest velocity .... %f ", self.highest_v)
 
         throttle_cmd = 0.    # Throttle command value
         brake_cmd = 0.     # Throttle command value
@@ -106,6 +107,10 @@ class Controller(object):
         steering_error = w_target #- w_current
         steering_cmd = self.steering.get_steering(v_target, steering_error, v_current)
         steering_cmd = self.steer_pid.step(steering_cmd, dt)
+
+        rospy.loginfo("velocity target: %f ... current: %f ", v_target, v_current)
+        rospy.loginfo("steer target: %f ... current: %f ", w_target, w_current)
+        rospy.loginfo("throttle: %f ... brake: %f ... Steer: %f", throttle_cmd, brake_cmd, steering_cmd)
         
         # Return throttle, brake, steer in this order
         return throttle_cmd, brake_cmd, steering_cmd
