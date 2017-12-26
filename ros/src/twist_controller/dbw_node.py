@@ -128,9 +128,7 @@ class DBWNode(object):
                     rospy.loginfo("DBW is enable......ON ")
                     throttle, brake, steering = self.controller.control(target_v,target_w,current_v,current_W,dbw_status,dt)
 
-                    rospy.loginfo("throttle: %f", throttle)
-                    rospy.loginfo("brake: %f", brake)
-                    rospy.loginfo("steering: %f", steering)
+                    rospy.loginfo("DBW node throttle: %f ... brake: %f ... Steer: %f", throttle, brake, steering)
 
                     self.publish(throttle, brake, steering)
                 else:

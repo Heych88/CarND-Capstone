@@ -4,11 +4,11 @@
     <!-- <node pkg="waypoint_updater" 
                type="waypoint_updater.py" 
                name="waypoint_updater" 
-               output="screen" 
+               output="log"
                launch-prefix ="xterm -e"/> -->
     
     <node pkg="waypoint_updater" 
                type="waypoint_updater.py" 
                name="waypoint_updater" 
-               output="screen"/>
+               output="log"/>
 </launch>
