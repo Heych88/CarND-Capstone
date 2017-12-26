@@ -2,7 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from styx_msgs.msg import Lane, Waypoint
+from styx_msgs.msg import Lane, Waypoint, Light
 from std_msgs.msg import Bool
 import math
 from copy import deepcopy
@@ -34,7 +34,7 @@ class WaypointUpdater(object):
         # init node
         rospy.init_node('waypoint_updater')
         # Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-        rospy.Subscriber('/traffic_waypoint',Int32,self.traffic_cb)
+        rospy.Subscriber('/traffic_waypoint', Light, self.traffic_cb)
         
         # subscriber
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -54,9 +54,10 @@ class WaypointUpdater(object):
         self.base_waypoints_cb = False
         self.current_pose_cb = False
         self.current_twist_cb = False
-        self.wp_num = 0
+        self.wp_num = 1
         self.wp_front = None
-        self.red_light_index = -1        # store the waypoint index of the upcoming red lights position
+        self.light_index = -1   # store the waypoint index of the upcoming lights position
+        self.light_state = -1
 
         self.desired_vel = 0.0 # the desired vehicle velocity at each timestep
         #self.max_vel = 10.0 # m/s
@@ -90,23 +91,21 @@ class WaypointUpdater(object):
             rospy.loginfo("current waypoint x .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.x)
             rospy.loginfo("current waypoint y .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.y)
             rospy.loginfo("current linear twist .... %f", self.base_waypoints.waypoints[front_index].twist.twist.linear.x)
-            rospy.loginfo("desired linear twist .... %f", self.map_waypoints.waypoints[front_index].twist.twist.linear.x)
+            rospy.loginfo("map linear twist .... %f", self.map_waypoints.waypoints[front_index].twist.twist.linear.x)
+            rospy.loginfo("desired linear velocity .... %f", self.desired_vel)
             rospy.loginfo("current x .... %f", self.current_pose.pose.position.x)
             rospy.loginfo("current y .... %f", self.current_pose.pose.position.y)
-            rospy.loginfo("red light waypoint index %d", self.red_light_index)
+            rospy.loginfo("light waypoint index %d", self.light_index)
+            rospy.loginfo("light state %d", self.light_state)
 
             # copy look ahead waypoints
-
             final_waypoints = Lane()
             final_waypoints.header = self.base_waypoints.header
-            #final_waypoints.waypoints[front_index].twist.twist.linear.x = self.desired_vel
 
             for i in range(front_index, front_index+LOOKAHEAD_WPS):
                 ci = i%self.wp_num
                 final_waypoints.waypoints.append(self.base_waypoints.waypoints[ci])
                 final_waypoints.waypoints[-1].twist.twist.linear.x = self.desired_vel
-
-            rospy.loginfo(self.desired_vel)
 
             self.final_waypoints_pub.publish(final_waypoints)
         else:
@@ -163,8 +162,14 @@ class WaypointUpdater(object):
         # between the closest wap point[i] and [i-1]
         # Note: cyclic waypoint
         wp_front = min_i
-        wp_1 = (min_i-1)%self.wp_num
-        wp_2 =  min_i%self.wp_num
+
+        if(self.wp_num != 0):
+            wp_1 = (min_i-1)%self.wp_num
+            wp_2 = min_i % self.wp_num
+        else:
+            wp_1 = min_i - 1
+            wp_2 = min_i
+
         x1 = self.base_waypoints.waypoints[wp_1].pose.pose.position.x
         y1 = self.base_waypoints.waypoints[wp_1].pose.pose.position.y
         x2 = self.base_waypoints.waypoints[wp_2].pose.pose.position.x
@@ -238,10 +243,10 @@ class WaypointUpdater(object):
         # set the environments speed limit and slow down by 10%
         base_vel = self.map_waypoints.waypoints[index].twist.twist.linear.x * 0.9
 
-        if(self.red_light_index >= 0):
-            dist_x = self.base_waypoints.waypoints[self.red_light_index].pose.pose.position.x - \
+        if(self.light_index >= 0):
+            dist_x = self.base_waypoints.waypoints[self.light_index].pose.pose.position.x - \
                      self.base_waypoints.waypoints[index].pose.pose.position.x
-            dist_y = self.base_waypoints.waypoints[self.red_light_index].pose.pose.position.y - \
+            dist_y = self.base_waypoints.waypoints[self.light_index].pose.pose.position.y - \
                      self.base_waypoints.waypoints[index].pose.pose.position.y
 
             # calculate the distance to target location from the front of the vehicle
@@ -276,12 +281,14 @@ class WaypointUpdater(object):
         rospy.loginfo("waypoint msg receive with %d length.... ", len(msg.waypoints))
         if not self.base_waypoints_cb:
             self.base_waypoints_cb = True   
-            self.base_waypoints = msg
-            self.map_waypoints = deepcopy(msg)
-            self.wp_num = len(msg.waypoints)
+        self.base_waypoints = msg
+        self.map_waypoints = deepcopy(msg)
+        self.wp_num = len(msg.waypoints)
 
     def traffic_cb(self, msg):
-        self.red_light_index = msg.data
+        self.light_index = msg.waypoint.data
+        self.light_state = msg.state.data
+
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later

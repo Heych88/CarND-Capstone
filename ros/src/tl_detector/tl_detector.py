@@ -2,7 +2,7 @@
 import rospy
 from std_msgs.msg import Int32
 from geometry_msgs.msg import PoseStamped, Pose
-from styx_msgs.msg import TrafficLightArray, TrafficLight
+from styx_msgs.msg import TrafficLightArray, TrafficLight, Light
 from styx_msgs.msg import Lane
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
@@ -43,7 +43,7 @@ class TLDetector(object):
         sub3 = rospy.Subscriber('/vehicle/traffic_lights', TrafficLightArray, self.traffic_cb)
         sub6 = rospy.Subscriber('/image_color', Image, self.image_cb)
 
-        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+        self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Light, queue_size=1)
 
         self.bridge = CvBridge()
 
@@ -90,9 +90,18 @@ class TLDetector(object):
             self.last_state = self.state
             light_wp = light_wp if state == TrafficLight.RED else -1
             self.last_wp = light_wp
-            self.upcoming_red_light_pub.publish(Int32(light_wp))
+
+            light_array = Light()
+            light_array.state = Int32(self.state)
+            light_array.waypoint = Int32(light_wp)
+
+            self.upcoming_red_light_pub.publish(light_array)
         else:
-            self.upcoming_red_light_pub.publish(Int32(self.last_wp))
+            light_array = Light()
+            light_array.state = Int32(self.state)
+            light_array.waypoint = Int32(self.last_wp)
+
+            self.upcoming_red_light_pub.publish(light_array)
         self.state_count += 1
 
     def get_closest_waypoint(self, pose):
