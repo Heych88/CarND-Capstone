@@ -2,7 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from styx_msgs.msg import Lane, Waypoint, Light
+from styx_msgs.msg import Lane, Waypoint, Light, TrafficLight
 from std_msgs.msg import Bool
 import math
 from copy import deepcopy
@@ -57,13 +57,14 @@ class WaypointUpdater(object):
         self.wp_num = 1
         self.wp_front = None
         self.light_index = -1   # store the waypoint index of the upcoming lights position
-        self.light_state = -1
+        self.light_state = TrafficLight.UNKNOWN
+        self.yellowlight = False
 
         self.desired_vel = 0.0 # the desired vehicle velocity at each timestep
         #self.max_vel = 10.0 # m/s
         self.ramp_dist = 35 # distance to ramp up and down the acceleration (m)
         # Kinematics => Vf^2 = Vi^2 + 2*a*d => Vi = 0
-        self.acceleration_rate = 0.1 # self.max_vel / (2 * self.ramp_dist)
+        self.acceleration_rate = 0.5/30.  #self.max_vel / (2 * self.ramp_dist)
 
         self.dbw = False  # dbw enable
         self.dbw_init = False  # first connection established(in syn with publish loop)
@@ -85,18 +86,19 @@ class WaypointUpdater(object):
             # independent of the cars position.
             #front_index = self.next_front()
 
-            self.set_linear_velocity(front_index)
+            self.set_linear_velocity(max(front_index, 0))
 
             rospy.loginfo("current waypoint index .... %d", front_index)
-            rospy.loginfo("current waypoint x .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.x)
-            rospy.loginfo("current waypoint y .... %f", self.base_waypoints.waypoints[front_index].pose.pose.position.y)
-            rospy.loginfo("current linear twist .... %f", self.base_waypoints.waypoints[front_index].twist.twist.linear.x)
-            rospy.loginfo("map linear twist .... %f", self.map_waypoints.waypoints[front_index].twist.twist.linear.x)
-            rospy.loginfo("desired linear velocity .... %f", self.desired_vel)
-            rospy.loginfo("current x .... %f", self.current_pose.pose.position.x)
-            rospy.loginfo("current y .... %f", self.current_pose.pose.position.y)
-            rospy.loginfo("light waypoint index %d", self.light_index)
-            rospy.loginfo("light state %d", self.light_state)
+            rospy.loginfo("current waypoint x: %f ... y: %f",
+                          self.base_waypoints.waypoints[front_index].pose.pose.position.x,
+                          self.base_waypoints.waypoints[front_index].pose.pose.position.y)
+            rospy.loginfo("current linear velocity: %f ... map: %f ... desired: %f",
+                          self.current_twist.twist.linear.x,
+                          self.map_waypoints.waypoints[front_index].twist.twist.linear.x,
+                          self.desired_vel)
+            rospy.loginfo("current pose x: %f ... y: %f", self.current_pose.pose.position.x,
+                          self.current_pose.pose.position.y)
+            rospy.loginfo("light state: %d ... light waypoint index %d", self.light_state, self.light_index)
 
             # copy look ahead waypoints
             final_waypoints = Lane()
@@ -180,7 +182,7 @@ class WaypointUpdater(object):
         Ry = y-y1
         dx = x2-x1
         dy = y2-y1
-        seg_length = math.sqrt(dx*dx + dy*dy)
+        seg_length = max(math.sqrt(dx*dx + dy*dy), 1.) # prevent divide by 0
         u = (Rx*dx + Ry*dy)/seg_length
         
         # check index from vector projection if already pass this point
@@ -243,22 +245,43 @@ class WaypointUpdater(object):
         # set the environments speed limit and slow down by 10%
         base_vel = self.map_waypoints.waypoints[index].twist.twist.linear.x * 0.9
 
-        if(self.light_index >= 0):
+        state = self.light_state
+
+        if(state == TrafficLight.RED or state == TrafficLight.YELLOW): #self.light_index >= 0):
             dist_x = self.base_waypoints.waypoints[self.light_index].pose.pose.position.x - \
                      self.base_waypoints.waypoints[index].pose.pose.position.x
             dist_y = self.base_waypoints.waypoints[self.light_index].pose.pose.position.y - \
                      self.base_waypoints.waypoints[index].pose.pose.position.y
 
+            current_vel = self.current_twist.twist.linear.x
+
             # calculate the distance to target location from the front of the vehicle
             dist = math.sqrt(dist_x ** 2 + dist_y ** 2) - wheel_base
 
-            if (dist < 0.3):
+            if(state == TrafficLight.YELLOW and self.yellowlight is False and
+                    (((current_vel) / (self.acceleration_rate*30)) > abs(dist*0.65)) and
+                    dist > 0):
+                self.desired_vel = base_vel
+                rospy.loginfo("Skip yellow light: %f   >   dist: %f",
+                              ((current_vel) / (self.acceleration_rate * 30)), dist)
+
+            elif (dist > -0.3 and dist < 1.):
                 self.desired_vel = 0.
-            elif(dist < self.ramp_dist): # ramp the velocity down when close to the stop point
-                self.desired_vel = max(base_vel * dist / self.ramp_dist, 0.5) # simple ramp function
+
+            elif(dist > 0 and abs(dist) < self.ramp_dist): # ramp the velocity down when close to the stop point
+                self.desired_vel = max(base_vel * dist / self.ramp_dist, 0.8) # simple ramp function
+                self.yellowlight = True
+
+            else:
+                self.desired_vel = base_vel
+                self.yellowlight = False
+
+            rospy.loginfo("state: %d ... base_vel: %f ... dist: %f ... desired_vel: %f ... stop at light: %r",
+                          state, base_vel, dist, self.desired_vel, self.yellowlight)
         else:
             # ramp speed up with acceleration of 0.041(m/s)/ros_rate
             self.desired_vel = max(self.desired_vel + self.acceleration_rate, 0.5)
+            self.yellowlight = False
 
         self.desired_vel = min(self.desired_vel, base_vel)
 
