@@ -12,7 +12,7 @@ import cv2
 import yaml
 import math
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 2
 
 class TLDetector(object):
     def __init__(self):
@@ -88,18 +88,27 @@ class TLDetector(object):
             self.state = state
         elif self.state_count >= STATE_COUNT_THRESHOLD:
             self.last_state = self.state
-            light_wp = light_wp if state == TrafficLight.RED else -1
+
+            if state == TrafficLight.RED or state == TrafficLight.YELLOW:
+                light_wp = light_wp
+            #else:
+            #    light_wp = -1
+
             self.last_wp = light_wp
 
             light_array = Light()
             light_array.state = Int32(self.state)
             light_array.waypoint = Int32(light_wp)
 
+            rospy.loginfo("State: %d ... light waypoint: %d", self.state, light_wp)
+
             self.upcoming_red_light_pub.publish(light_array)
         else:
             light_array = Light()
             light_array.state = Int32(self.state)
-            light_array.waypoint = Int32(self.last_wp)
+            light_array.waypoint = Int32(light_wp)  #self.last_wp)
+
+            rospy.loginfo("State: %d ... last light waypoint: %d", self.state, self.last_wp)
 
             self.upcoming_red_light_pub.publish(light_array)
         self.state_count += 1
@@ -185,6 +194,9 @@ class TLDetector(object):
                     light = line_stop_pose
         if light:
             state = self.get_light_state(light)
+
+            rospy.loginfo("process_traffic_lights State: %d ... light waypoint: %d", state, light_wp)
+
             return light_wp, state
 
         return -1, TrafficLight.UNKNOWN
