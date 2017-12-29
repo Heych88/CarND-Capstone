@@ -58,13 +58,13 @@ class WaypointUpdater(object):
         self.wp_front = None
         self.light_index = -1   # store the waypoint index of the upcoming lights position
         self.light_state = TrafficLight.UNKNOWN
-        self.yellowlight = False
+        self.stop_at_light = False
 
         self.desired_vel = 0.0 # the desired vehicle velocity at each timestep
         #self.max_vel = 10.0 # m/s
-        self.ramp_dist = 35 # distance to ramp up and down the acceleration (m)
+        self.ramp_dist = 30 # distance to ramp up and down the acceleration (m)
         # Kinematics => Vf^2 = Vi^2 + 2*a*d => Vi = 0
-        self.acceleration_rate = 0.5/30.  #self.max_vel / (2 * self.ramp_dist)
+        self.acceleration_rate = 0.75/30.  #self.max_vel / (2 * self.ramp_dist)
 
         self.dbw = False  # dbw enable
         self.dbw_init = False  # first connection established(in syn with publish loop)
@@ -246,6 +246,8 @@ class WaypointUpdater(object):
         base_vel = self.map_waypoints.waypoints[index].twist.twist.linear.x * 0.9
 
         state = self.light_state
+        min_vel = 1.
+        overshoot_dist = -0.5
 
         if(state == TrafficLight.RED or state == TrafficLight.YELLOW): #self.light_index >= 0):
             dist_x = self.base_waypoints.waypoints[self.light_index].pose.pose.position.x - \
@@ -258,30 +260,32 @@ class WaypointUpdater(object):
             # calculate the distance to target location from the front of the vehicle
             dist = math.sqrt(dist_x ** 2 + dist_y ** 2) - wheel_base
 
-            if(state == TrafficLight.YELLOW and self.yellowlight is False and
-                    (((current_vel) / (self.acceleration_rate*30)) > abs(dist*0.65)) and
-                    dist > 0):
-                self.desired_vel = base_vel
-                rospy.loginfo("Skip yellow light: %f   >   dist: %f",
-                              ((current_vel) / (self.acceleration_rate * 30)), dist)
+            # brake at double the acceleration rate
+            speed_check = current_vel #/ (self.acceleration_rate*30)
+            dist_check = abs(dist + 2)
+            speed_stop_check = (speed_check < dist_check) or (current_vel < 3. and dist > overshoot_dist)
+            rospy.loginfo("Can stop at light: %f   <   dist: %f ... %r", speed_check, dist_check, speed_stop_check)
 
-            elif (dist > -0.3 and dist < 1.):
-                self.desired_vel = 0.
+            if(dist > overshoot_dist and abs(dist) < self.ramp_dist and speed_stop_check):
+                # ramp the velocity down when close to the stop point
 
-            elif(dist > 0 and abs(dist) < self.ramp_dist): # ramp the velocity down when close to the stop point
-                self.desired_vel = max(base_vel * dist / self.ramp_dist, 0.8) # simple ramp function
-                self.yellowlight = True
+                if (dist < 1.):
+                    self.desired_vel = 0.
+                else:
+                    self.desired_vel = max(base_vel * dist / self.ramp_dist, min_vel) # simple ramp function
+
+                self.stop_at_light = True
 
             else:
                 self.desired_vel = base_vel
-                self.yellowlight = False
+                self.stop_at_light = False
 
             rospy.loginfo("state: %d ... base_vel: %f ... dist: %f ... desired_vel: %f ... stop at light: %r",
-                          state, base_vel, dist, self.desired_vel, self.yellowlight)
+                          state, base_vel, dist, self.desired_vel, self.stop_at_light)
         else:
             # ramp speed up with acceleration of 0.041(m/s)/ros_rate
-            self.desired_vel = max(self.desired_vel + self.acceleration_rate, 0.5)
-            self.yellowlight = False
+            self.desired_vel = max(self.desired_vel + self.acceleration_rate, min_vel)
+            self.stop_at_light = False
 
         self.desired_vel = min(self.desired_vel, base_vel)
 
