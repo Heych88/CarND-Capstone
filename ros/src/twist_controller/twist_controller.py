@@ -7,9 +7,9 @@ from math import *
 ##
 #    Throttle PID
 ##
-Kp_v = 1.5      #0.03      # 0.08      # 0.05
-Kd_v = 2.25     #0.01      # 0.02      # 0.02
-Ki_v = 0.045    #.002     # 0.005     # 0.001
+Kp_v = 1.25      #0.03      # 0.08      # 0.05
+Kd_v = 1.     #0.01      # 0.02      # 0.02
+Ki_v = 0.1    #.002     # 0.005     # 0.001
 
 ##
 #    Steering PID
@@ -24,11 +24,11 @@ Ki_s = 0.001
 ## 
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
-MIN_THROTTLE = 0.0
+MIN_THROTTLE = -2.0
 MAX_THROTTLE = 1.0
 
-MIN_INTEGRAL = -30.0  # this will max the integral error to only contribute 0.6 to the throttle
-MAX_INTEGRAL = 30.0
+MIN_INTEGRAL = -10.  # this will max the integral error to only contribute 0.2 to the throttle
+MAX_INTEGRAL = 10.
 # mynote: implement a feedback controller from pid,low pass (both for acceleration), yaw controller (steering)
 
 class Controller(object):
@@ -85,18 +85,23 @@ class Controller(object):
         # over the limit, then we need to apply brake
 
         # Throttle and brake control
-        if(current_v.x < 0.5) and (target_v.x < 0.2):
+        if(current_v.x < 2.) and (target_v.x == 0.):
             throttle_cmd = 0.
             self.throttle.reset()
-            brake_cmd = (self.vehicle_mass * self.wheel_radius) / 4
-
+            brake_cmd = 1000.  #Nm
         else:
             throttle_cmd = self.throttle.step(v_error, dt)
 
             # allow a small margin of error before applying the brakes
-            if (v_error < -0.15):
+            if (throttle_cmd < 0.):  #v_error < -0.25):
+                gain = abs(throttle_cmd) * current_v.x / 10.  #min(max(abs(v_error * throttle_cmd) * current_v.x/5, 0.1), 4)
                 # d_speed is negative so need to reverse it to positive
-                brake_cmd = fabs(self.vehicle_mass * self.wheel_radius * v_error / d_t)
+                Bf = self.vehicle_mass * 1. * 9.81
+                brake_cmd = fabs(Bf * self.wheel_radius * gain)  #self.vehicle_mass * self.wheel_radius * gain / d_t)
+                rospy.loginfo("throttle_cmd: %f ... velocity error: %f ... delta t: %f ... brake gain: %f",
+                              throttle_cmd, v_error, dt, gain)
+
+            throttle_cmd = max(throttle_cmd, 0.0)
 
         # Steering angle- steering output proportional to (v_current/v_target)
         #               - something fishy about this yaw control scheme
